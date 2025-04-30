@@ -15,3 +15,21 @@ compute : O(n^3)    ->  O(n + n^2)
 space   : O(2n^2)   ->  O(4n)
 """
 
+from tinygrad import Tensor
+
+einsum = Tensor.einsum
+
+N = 1000
+
+v = Tensor.randn(N)
+w = Tensor.randn(N)
+x = Tensor.randn(N)
+y = Tensor.randn(N)
+
+A = einsum("i,j -> i j", v, w)
+B = einsum("i,j -> i j", x, y)
+
+vanilla = A @ B
+bsmul   = (w @ x) * einsum("i,j -> i j", v, y)
+
+print(all(vanilla.isclose(bsmul).flatten().tolist()))
