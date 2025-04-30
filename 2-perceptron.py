@@ -21,6 +21,8 @@ from tinygrad import Tensor, TinyJit, nn, GlobalCounters
 from tinygrad.helpers import getenv, colored, trange
 from tinygrad.nn.datasets import mnist
 
+einsum = Tensor.einsum
+
 class Linear:
   def __init__(self, in_features:int, out_features:int, bias=True):
     bound = 1 / math.sqrt(in_features)
@@ -36,23 +38,44 @@ class Linear:
   def __call__(self, x:Tensor) -> Tensor: 
     return x.linear(self.weight.transpose(), self.bias)
 
+class BSLinear:
+  def __init__(self, dim: int, bias=True):
+    bound = 1 / math.sqrt(dim)
+    self.v = Tensor.uniform(dim, low=-bound, high=bound)
+    self.w = Tensor.uniform(dim, low=-bound, high=bound)
+    self.bias = Tensor.uniform(dim, low=-bound, high=bound) if bias else None
+
+  def __call__(self, x:Tensor) -> Tensor: 
+    return einsum("i,j -> i j", (x @ self.w), self.v) + self.bias
+
 class Model:
   def __init__(self):
     self.layers: List[Callable[[Tensor], Tensor]] = [
       lambda x: x.rearrange("... 1 h w -> ... (h w)"),  
-      Linear(28*28, 28*28), Tensor.relu,
+      Linear(28*28, 28*28), 
+      Tensor.relu,
       Linear(28*28, 10)
     ]
 
   def __call__(self, x:Tensor) -> Tensor: return x.sequential(self.layers)
 
+class BSModel:
+  def __init__(self):
+    self.layers: List[Callable[[Tensor], Tensor]] = [
+      lambda x: x.rearrange("... 1 h w -> ... (h w)"),  
+      BSLinear(28*28), 
+      Tensor.relu,
+      Linear(28*28, 10)
+    ]
+
+  def __call__(self, x:Tensor) -> Tensor: return x.sequential(self.layers)
 
 # -- Training ---------------------------------------------------------------
 
 if __name__ == "__main__":
   X_train, Y_train, X_test, Y_test = mnist(fashion=getenv("FASHION"))
 
-  model = Model()
+  model = BSModel() if getenv("BS") > 0 else Model()
   opt = nn.optim.Adam(nn.state.get_parameters(model))
 
   @TinyJit
