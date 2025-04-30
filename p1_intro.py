@@ -44,16 +44,18 @@ def bsmul(V: Tensor, W: Tensor, X: Tensor, Y: Tensor) -> Tensor:
     D = einsum("ri,s i -> r s", W, X)
     return einsum("rs, r i, s j -> i j", D, V, Y)
 
-n, r, s = 100, 2, 2
-V, W = Tensor.randn(r, n), Tensor.randn(r, n)
-X, Y = Tensor.randn(s, n), Tensor.randn(s, n)
+if __name__ == "__main__":
+  n, r, s = 100, 2, 2
+  atol = 1e-4 # this is numerically **very** different from vanilla matmul
+  V, W = Tensor.randn(r, n), Tensor.randn(r, n)
+  X, Y = Tensor.randn(s, n), Tensor.randn(s, n)
 
-# low-rank product
-C_low = bsmul(V, W, X, Y)
+  # low-rank product
+  C_low = bsmul(V, W, X, Y)
 
-# “ground-truth” dense product
-A = einsum("ri, rj -> i j", V, W)           # build dense A (n×n)
-B = einsum("si, sj -> i j", X, Y)           # build dense B (n×n)
-C_dense = A @ B
+  # “vanilla” dense product
+  A = einsum("ri, rj -> i j", V, W)           # build dense A (n×n)
+  B = einsum("si, sj -> i j", X, Y)           # build dense B (n×n)
+  C_dense = A @ B
 
-print(C_low.isclose(C_dense, atol=1e-4).all().item())  # → True
+  print(C_low.isclose(C_dense, atol=atol).all().item())  # → True

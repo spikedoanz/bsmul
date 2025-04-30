@@ -21,6 +21,8 @@ from tinygrad import Tensor, TinyJit, nn, GlobalCounters
 from tinygrad.helpers import getenv, colored, trange
 from tinygrad.nn.datasets import mnist
 
+from p1_intro import bsmul
+
 einsum = Tensor.einsum
 
 class Linear:
